@@ -21,6 +21,7 @@ from modulus.utils.io.vtk import grid_to_vtk
 from utilities import download_FNO_dataset, load_FNO_dataset
 from operations import dx, ddx
 
+from Solver_PINO import Solver_PINO
 from GridValidator_PINO import GridValidator_PINO
 
 class Darcy(torch.nn.Module):
@@ -207,7 +208,7 @@ def run(cfg: ModulusConfig) -> None:
     domain.add_validator(val, "test")
 
     # make solver
-    slv = Solver(cfg, domain)
+    slv = Solver_PINO(cfg, domain)
 
     # start solver
     slv.solve()

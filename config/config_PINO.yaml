@@ -13,7 +13,7 @@ cuda_graphs: false
 jit: false
 
 custom:
-  gradient_method: "fdm"
+  gradient_method: "fourier"
   ntrain: 1000
   ntest: 100
 
@@ -27,7 +27,7 @@ arch:
   fno:
     input_keys: coeff
     dimension: 2
-    nr_fno_layers: 4
+    nr_fno_layers: 6
     fno_modes: 12
     padding: 9
 
@@ -36,7 +36,7 @@ scheduler:
   decay_steps: 1000
 
 training:
-  rec_results_freq : 1000
+  rec_results_freq : 500
   max_steps : 10000
 
 loss:
@@ -49,6 +49,8 @@ batch_size:
   validation: 8
 
 network_dir: ${custom.gradient_method}
+#network_dir: "fourier-layers"
+
 
 # @package _global_
 #hydra:
