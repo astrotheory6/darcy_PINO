@@ -23,6 +23,11 @@ from operations import dx, ddx
 
 from Solver_PINO import Solver_PINO
 from GridValidator_PINO import GridValidator_PINO
+from GridValidatorPlotter_PINO import GridValidatorPlotter_PINO
+
+
+from tensorboard.plugins.hparams import api as hp
+from torch.utils.tensorboard import SummaryWriter
 
 class Darcy(torch.nn.Module):
 
@@ -84,7 +89,6 @@ class Darcy(torch.nn.Module):
             dduddx_fourier = f_ddu[:, 0:1, :dim_u_x, :dim_u_y]
             dduddy_fourier = f_ddu[:, 1:2, :dim_u_x, :dim_u_y]
 
-
             darcy = (
                 1.0
                 + (dkdx * dudx_fourier)
@@ -92,12 +96,15 @@ class Darcy(torch.nn.Module):
                 + (dkdy * dudy_fourier)
                 + (k * dduddy_fourier)
             )
+
         else:
             raise ValueError(f"Derivative method {self.gradient_method} not supported")
         
         #pad outer boundary with zeros
         darcy = F.pad(darcy[:, :, 2:-2, 2:-2], [2, 2, 2, 2], "constant", 0)
+        #output_var = {"darcy": dxf * darcy}
         output_var = {"darcy": dxf * darcy}
+
         return output_var
 
 
@@ -202,7 +209,7 @@ def run(cfg: ModulusConfig) -> None:
         nodes,
         dataset=test_dataset,
         batch_size=cfg.batch_size.validation,
-        plotter=GridValidatorPlotter(n_examples=5),
+        plotter=GridValidatorPlotter_PINO(n_examples=5),
         requires_grad=True,
     )
     domain.add_validator(val, "test")
@@ -210,8 +217,33 @@ def run(cfg: ModulusConfig) -> None:
     # make solver
     slv = Solver_PINO(cfg, domain)
 
+    """hparams = {
+        'decoder_nr_layers': cfg.arch.decoder.nr_layers,
+        'decoder_layer_size': cfg.arch.decoder.layer_size,
+
+        'dimension': cfg.arch.fno.dimension,
+        'nr_fno_layers': cfg.arch.fno.nr_fno_layers,
+        'fno_modes': cfg.arch.fno.fno_modes,
+        'padding': cfg.arch.fno.padding,
+
+        'decay_rate': cfg.scheduler.decay_rate,
+        'decay_steps': cfg.scheduler.decay_steps,
+
+        'weight_data_loss': cfg.loss.weights.data,
+        'weight_PDE_loss': cfg.loss.weights.darcy,
+
+        'batch_size_grid': cfg.batch_size.grid,
+        'batch_size_validation': cfg.batch_size.validation,
+    }
+
+    writer = SummaryWriter(
+        log_dir=cfg.network_dir
+    )
+    writer.add_hparams(hparams, {})"""
+
     # start solver
     slv.solve()
+
 
 
 

@@ -12,6 +12,10 @@ import h5py
 
 from modulus.hydra import to_absolute_path
 
+from omegaconf import OmegaConf
+
+OmegaConf.register_new_resolver("merge", lambda x, y : x + y)
+
 # list of FNO dataset url ids on drive: https://drive.google.com/drive/folders/1UnbQh2WWc6knEHbLn-ZaXrKUZhp7pjt-
 _FNO_datatsets_ids = {
     "Darcy_241": "1ViDqN7nc_VCnMackiXv_d7CHZANAFKzV",

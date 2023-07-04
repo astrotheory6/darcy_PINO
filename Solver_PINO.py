@@ -40,11 +40,33 @@ from modulus.solver import Solver
 class Solver_PINO(Solver):
     def __init__(self, cfg: DictConfig, domain: Domain):
         super(Solver_PINO, self).__init__(cfg=cfg, domain=domain)
+        self.gradient_method = cfg.custom.gradient_method
+
     
     def _train_loop(
         self,
         sigterm_handler=None,
     ):  # TODO this train loop may be broken up into methods if need for future children classes
+
+
+        hparams = {
+            'decoder_nr_layers': self.cfg.arch.decoder.nr_layers,
+            'decoder_layer_size': self.cfg.arch.decoder.layer_size,
+                            
+            'dimension': self.cfg.arch.fno.dimension,
+            'nr_fno_layers': self.cfg.arch.fno.nr_fno_layers,
+            'fno_modes': self.cfg.arch.fno.fno_modes,
+            'padding': self.cfg.arch.fno.padding,
+                
+            'decay_rate': self.cfg.scheduler.decay_rate,
+            'decay_steps': self.cfg.scheduler.decay_steps,
+                            
+            'weight_data_loss': self.cfg.loss.weights.data,
+            'weight_PDE_loss': self.cfg.loss.weights.darcy,
+                            
+            'batch_size_grid': self.cfg.batch_size.grid,
+            'batch_size_validation': self.cfg.batch_size.validation,
+        }
 
         # make directory if doesn't exist
         if self.manager.rank == 0:
@@ -157,11 +179,12 @@ class Solver_PINO(Solver):
 
         # train loop
         with ExitStack() as stack:
+
             if self.profile:
                 # Add NVTX context if in profile mode
                 self.log.warning("Running in profiling mode")
                 stack.enter_context(torch.autograd.profiler.emit_nvtx())
-
+            
             for step in range(self.initial_step, self.max_steps + 1):
 
                 if self.sigterm_handler():
@@ -188,6 +211,7 @@ class Solver_PINO(Solver):
                     self.load_data(static=True)
 
                     loss, losses = self._cuda_graph_training_step(step)
+
                 else:
                     # Load all data for constraints
                     self.load_data()
@@ -216,6 +240,9 @@ class Solver_PINO(Solver):
                 if step % self.summary_freq == 0:
                     if self.manager.rank == 0:
 
+                        final_data_loss = 999999
+                        final_darcy_loss = 999999
+
                         # add train loss scalars
                         for key, value in losses.items():
                             if TF_SUMMARY:
@@ -240,7 +267,12 @@ class Solver_PINO(Solver):
                                     new_style=True,
                                 )
 
-
+                            if step == self.max_steps:
+                                if str(key) == "data":
+                                    final_data_loss = value
+                                elif str(key) == "darcy":
+                                    final_darcy_loss = value
+                                    
                         if TF_SUMMARY:
                             self.writer.add_scalar(
                                 "Optimzer/loss", loss, step, new_style=True
@@ -264,6 +296,38 @@ class Solver_PINO(Solver):
                                 step,
                                 new_style=True,
                             )
+                        
+                        hparams = {
+                            'decoder_nr_layers': self.cfg.arch.decoder.nr_layers,
+                            'decoder_layer_size': self.cfg.arch.decoder.layer_size,
+                            
+                            'dimension': self.cfg.arch.fno.dimension,
+                            'nr_fno_layers': self.cfg.arch.fno.nr_fno_layers,
+                            'fno_modes': self.cfg.arch.fno.fno_modes,
+                            'padding': self.cfg.arch.fno.padding,
+                
+                            'decay_rate': self.cfg.scheduler.decay_rate,
+                            'decay_steps': self.cfg.scheduler.decay_steps,
+                            
+                            'weight_data_loss': self.cfg.loss.weights.data,
+                            'weight_PDE_loss': self.cfg.loss.weights.darcy,
+                            
+                            'batch_size_grid': self.cfg.batch_size.grid,
+                            'batch_size_validation': self.cfg.batch_size.validation,
+                        }
+
+                    if step == self.max_steps:
+                        metric_dict = {
+                            'final_aggregated_loss': loss.item(), 
+                            'final_data_loss': final_data_loss,
+                            'final_darcy_loss': final_darcy_loss
+
+                        }
+                        self.writer.add_hparams(
+                            hparam_dict=hparams, 
+                            metric_dict=metric_dict,
+                            run_name = '.'
+                        )
 
                     if self.manager.distributed:
                         barrier_flag = True
@@ -365,3 +429,5 @@ class Solver_PINO(Solver):
                     break
 
                 torch.cuda.nvtx.range_pop()
+
+                

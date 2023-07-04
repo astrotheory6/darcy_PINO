@@ -7,8 +7,6 @@ defaults :
   - loss: sum
   - _self_
 
-
-
 cuda_graphs: false
 jit: false
 
@@ -16,6 +14,7 @@ custom:
   gradient_method: "fourier"
   ntrain: 1000
   ntest: 100
+  experiment: "testing_vals"
 
 arch:
   decoder:
@@ -37,18 +36,20 @@ scheduler:
 
 training:
   rec_results_freq : 500
+  rec_validation_freq: 100
   max_steps : 10000
+  summary_freq: 500
 
 loss:
   weights:
-    sol: 1.0
-    darcy: 0.1
+    data: 0.00
+    darcy: 1.0
 
 batch_size:
   grid: 8
   validation: 8
 
-network_dir: ${custom.gradient_method}
+network_dir: ${custom.experiment}/${custom.gradient_method}
 #network_dir: "fourier-layers"
 
 

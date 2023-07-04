@@ -139,7 +139,6 @@ class GridValidator_PINO(GridValidator):
                 writer.add_scalar(
                     "Validators/" + name + "/" + k, loss, step, new_style=True)
                 
-
         for j, loss in absolute_losses.items():
             if TF_SUMMARY:
                 writer.add_scalar("val/" + name + "/" + j, loss, step, new_style=True)
